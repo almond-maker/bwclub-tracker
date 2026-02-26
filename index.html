@@ -1,609 +1,683 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>BW Club — PM Learning Portal</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'DM Sans',sans-serif;background:#0B0C10;color:#ECEAE5}
-@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-select option{background:#14151B;color:#ECEAE5}
-::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#0B0C10}::-webkit-scrollbar-thumb{background:#262733;border-radius:3px}
-</style>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BW Club PM Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
-<body>
-<div id="root"></div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
-<script type="text/babel">
-const{useState,useEffect,useRef,useCallback}=React;
+<body style="margin:0;background:#000">
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useCallback } = React;
 
-const SUPA_URL='https://ybkysfhsnpvqayhtaknx.supabase.co';
-const SUPA_KEY='sb_publishable_Hhntaf2L8SKdmIsVSySYWA_6gYKMEkG';
-const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
+    const SB_URL = "https://wboqmxtlumskqvdmrorv.supabase.co";
+    const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indib3FteHRsdW1za3F2ZG1yb3J2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0NjE3MjAsImV4cCI6MjA4NzAzNzcyMH0.6yJuYGRHk7aEKkkt_JMReY-Ewt_uaq1Y9kualj5KDs4";
+    const H = { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "Content-Type": "application/json" };
 
-// ─── THEME ──────────────────────────────────────────────────────────────
-const C={
-  bg:'#0B0C10',surface:'#14151B',alt:'#1A1B23',hover:'#1E1F28',border:'#262733',
-  accent:'#C9A84C',accentDim:'#C9A84C25',accentGlow:'#C9A84C10',accentMed:'#C9A84C50',
-  text:'#ECEAE5',sub:'#908F9A',muted:'#5A596A',
-  green:'#4ADE80',greenDim:'#4ADE8018',red:'#F87171',redDim:'#F8717118',
-  yellow:'#FBBF24',yellowDim:'#FBBF2418',blue:'#60A5FA',blueDim:'#60A5FA18',
-  purple:'#A78BFA',purpleDim:'#A78BFA18',
-};
-const F={body:"'DM Sans',sans-serif",display:"'Playfair Display',serif"};
+    const sGet = (t, q="") => fetch(`${SB_URL}/rest/v1/${t}${q?`?${q}`:""}`, { headers: H }).then(r => r.json());
+    const sPost = (t, b) => fetch(`${SB_URL}/rest/v1/${t}`, { method:"POST", headers:{...H, Prefer:"return=representation"}, body:JSON.stringify(b) }).then(r => r.json());
+    const sPatch = (t, f, b) => fetch(`${SB_URL}/rest/v1/${t}?${f}`, { method:"PATCH", headers:{...H, Prefer:"return=representation"}, body:JSON.stringify(b) }).then(r => r.json());
+    const sDel = (t, f) => fetch(`${SB_URL}/rest/v1/${t}?${f}`, { method:"DELETE", headers: H });
 
-// ─── UI ─────────────────────────────────────────────────────────────────
-const Badge=({label,color,bg})=><span style={{display:'inline-flex',padding:'3px 10px',borderRadius:20,fontSize:10.5,fontWeight:650,color,background:bg,letterSpacing:'0.03em'}}>{label}</span>;
+    const dbToLink = r => ({ id:r.id, pmId:r.pm_id, pmName:r.pm_name, accId:r.acc_id, client:r.client, username:r.username, url:r.url, likes:r.likes||0, date:r.date, postDate:r.post_date, manualDateUsed:r.manual_date_used, status:r.status, duplicate:r.duplicate, promotedFromDraft:r.promoted_from_draft, promotedAt:r.promoted_at });
+    const linkToDb = l => ({ id:l.id, pm_id:l.pmId, pm_name:l.pmName, acc_id:l.accId, client:l.client, username:l.username, url:l.url, likes:l.likes||0, date:l.date, post_date:l.postDate||null, manual_date_used:l.manualDateUsed||false, status:l.status, duplicate:l.duplicate||false, promoted_from_draft:l.promotedFromDraft||false, promoted_at:l.promotedAt||null });
+    const updToDb = u => { const m={pmId:"pm_id",pmName:"pm_name",accId:"acc_id",postDate:"post_date",manualDateUsed:"manual_date_used",promotedFromDraft:"promoted_from_draft",promotedAt:"promoted_at"}; return Object.fromEntries(Object.entries(u).map(([k,v])=>[m[k]||k,v])); };
 
-const Card=({children,style:sx,glow,onClick,hoverable})=>{
-  const[h,setH]=useState(false);
-  return<div onClick={onClick} onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)} style={{background:glow?C.accentGlow:C.surface,border:`1px solid ${glow?C.accentMed:h&&hoverable?C.accentMed:C.border}`,borderRadius:12,padding:24,cursor:onClick?'pointer':'default',transition:'all 0.2s',...sx}}>{children}</div>;
-};
+    const DEFAULT_PMS = [
+      { id:"aava", name:"Aava", accounts:[
+        {id:"a1",client:"Hook",username:"aava.hook"},{id:"a2",client:"Tea",username:"fbigirlboss444"},
+        {id:"a3",client:"Spec",username:"aava.spec"},{id:"a4",client:"Aava",username:"aava.comet"},
+        {id:"a5",client:"Tea",username:"avadates"},{id:"a6",client:"Figma",username:"celebwaava"},
+        {id:"a7",client:"GeniesWeb",username:"genies_chat"},{id:"a8",client:"Genies",username:"aavassim"},
+      ]},
+      { id:"cam", name:"Cam", accounts:[
+        {id:"c1",client:"Genies App",username:"camthegpt"},{id:"c2",client:"Dream Body",username:"chadbria"},
+        {id:"c3",client:"Tea",username:"beware.of.boy"},{id:"c4",client:"Genies Web",username:"masonvale_lover23"},
+        {id:"c5",client:"Hook",username:"theradioheadgirl"},{id:"c6",client:"Figma",username:"makewithcam"},
+      ]},
+      { id:"ushni", name:"Ushni", accounts:[
+        {id:"u1",client:"Figma",username:"ushstyles"},{id:"u2",client:"Convo",username:"hpwithush"},
+        {id:"u3",client:"Figma",username:"scrapbookapp"},{id:"u4",client:"Spec",username:"ushspec"},
+        {id:"u5",client:"Figma",username:"crimewush"},{id:"u6",client:"Tea",username:"datingginnyc"},
+        {id:"u7",client:"Playful",username:"judeduarteloverx"},
+      ]},
+      { id:"almond", name:"Almond", accounts:[
+        {id:"al1",client:"Jabali",username:"girlsgogames2.0"},{id:"al2",client:"SimZ",username:"simz.games"},
+        {id:"al3",client:"Figma Slides",username:"gaminggossip"},{id:"al4",client:"Figma Make",username:"appsbyalmond"},
+        {id:"al5",client:"Figma Make",username:"kepttracks.app"},{id:"al6",client:"Playful",username:"almond.designs4"},
+      ]},
+    ];
 
-const Btn=({children,onClick,disabled,variant='primary',sx})=><button onClick={disabled?undefined:onClick} style={{border:variant==='outline'?`1px solid ${C.accent}40`:'none',background:variant==='primary'?C.accent:'transparent',color:variant==='primary'?C.bg:variant==='outline'?C.accent:C.sub,borderRadius:8,padding:variant==='ghost'?'8px 12px':'10px 20px',fontWeight:600,fontSize:13,cursor:disabled?'default':'pointer',fontFamily:F.body,opacity:disabled?0.35:1,transition:'all 0.15s',...sx}}>{children}</button>;
+    const TABS = ["Log Links", "Drafts", "Manage Accounts", "⚙ Admin"];
+    const MONTH_OPTS = [
+      { value:"2025-11", label:"December 2025", short:"Dec '25", start:new Date(2025,11,1), end:new Date(2025,11,31,23,59,59) },
+      ...Array.from({length:12},(_,i)=>{
+        const start=new Date(2026,i,1), end=new Date(2026,i+1,0,23,59,59);
+        return { value:`2026-${i}`, label:start.toLocaleDateString("en-US",{month:"long",year:"numeric"}), short:start.toLocaleDateString("en-US",{month:"short"}), start, end };
+      }),
+    ];
 
-const Label=({children})=><div style={{fontSize:10,fontWeight:700,color:C.sub,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:6}}>{children}</div>;
-const SH=({children,color:cl})=><div style={{fontSize:10.5,fontWeight:700,color:cl||C.accent,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:16}}>{children}</div>;
-const Txa=(props)=><textarea {...props} style={{width:'100%',background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:'12px 14px',color:C.text,fontSize:13,fontFamily:F.body,outline:'none',resize:'vertical',minHeight:90,boxSizing:'border-box',lineHeight:1.6,...props.style}}/>;
-const Inp=(props)=><input {...props} style={{width:'100%',background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:'10px 14px',color:C.text,fontSize:13,fontFamily:F.body,outline:'none',boxSizing:'border-box',...props.style}}/>;
-const Dv=()=><div style={{height:1,background:C.border,margin:'20px 0'}}/>;
-const Sel=({value,onChange,children})=><select value={value} onChange={onChange} style={{width:'100%',background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:'10px 14px',color:C.text,fontSize:13,fontFamily:F.body,cursor:'pointer'}}>{children}</select>;
-
-function ScopeBar({current,goal}){
-  const pct=goal>0?Math.min(Math.max((current/goal)*100,0),150):0;const display=Math.min(pct,100);
-  const color=pct>=90?C.green:pct>=60?C.yellow:C.red;const over=pct>100;
-  return<div><div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:C.sub,marginBottom:4}}><span>{current}/{goal} videos</span><span style={{color:over?C.green:color,fontWeight:600}}>{over?`${pct.toFixed(0)}% ✓`:`${pct.toFixed(0)}%`}</span></div><div style={{height:6,background:C.border,borderRadius:3,overflow:'hidden'}}><div style={{height:'100%',width:`${display}%`,background:color,borderRadius:3,transition:'width 0.4s ease'}}/></div></div>;
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-function App(){
-  const[user,setUser]=useState(null);
-  const[users,setUsers]=useState([]);
-  const[clients,setClients]=useState([]);
-  const[scopeData,setScopeData]=useState({});
-  const[reviews,setReviews]=useState([]);
-  const[learnings,setLearnings]=useState([]);
-  const[view,setView]=useState('dashboard');
-  const[selReview,setSelReview]=useState(null);
-  const[selClientFilter,setSelClientFilter]=useState(null);
-  const[aiLoading,setAiLoading]=useState(false);
-  const[aiResult,setAiResult]=useState(null);
-  const[loading,setLoading]=useState(true);
-  const[sheetRefreshing,setSheetRefreshing]=useState(false);
-
-  // ─── Load ──────────────────────────────────────────────────────────
-  const loadData=useCallback(async()=>{
-    setLoading(true);
-    try{
-      const[uR,cR,sR,rR,lR]=await Promise.all([
-        sb.from('users').select('*'),
-        sb.from('clients').select('*'),
-        sb.from('scope_data').select('*').order('refreshed_at',{ascending:false}),
-        sb.from('reviews').select('*').order('created_at',{ascending:false}),
-        sb.from('learnings').select('*').order('created_at',{ascending:false}),
-      ]);
-      if(uR.data)setUsers(uR.data.filter(u=>['admin2','pm1','pm2','pm3'].includes(u.id)));
-      if(cR.data)setClients(cR.data);
-      if(sR.data){const m={};sR.data.forEach(r=>{if(!m[r.client_id])m[r.client_id]=r});setScopeData(m)}
-      if(rR.data)setReviews(rR.data);
-      if(lR.data)setLearnings(lR.data);
-    }catch(e){console.error('Load:',e)}
-    setLoading(false);
-  },[]);
-  useEffect(()=>{loadData()},[loadData]);
-
-  const isAdmin=user?.role==='admin';
-  const isPM=user?.role==='pm';
-  const myClients=isAdmin?clients:clients.filter(cl=>cl.assigned_pm===user?.id);
-  const getPM=(pid)=>users.find(u=>u.id===pid);
-  const nav=(v)=>{setView(v);setSelReview(null);setSelClientFilter(null);setAiResult(null)};
-
-  const pendingForPM=isPM?reviews.filter(r=>{
-    const cl=clients.find(c=>c.id===r.client_id);
-    return cl?.assigned_pm===user?.id&&!learnings.find(l=>l.review_id===r.id&&l.pm_id===user?.id);
-  }):[];
-
-  // ─── Claude ───────────────────────────────────────────────────────
-  async function callClaude(messages){
-    try{
-      const res=await fetch('/.netlify/functions/claude-api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages,max_tokens:1500})});
-      return await res.json();
-    }catch(e){console.error('Claude:',e);return null}
-  }
-
-  async function extractScreenshot(file){
-    const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=()=>rej();r.readAsDataURL(file)});
-    const data=await callClaude([{role:'user',content:[
-      {type:'image',source:{type:'base64',media_type:file.type||'image/png',data:base64}},
-      {type:'text',text:'Look at this dashboard or content screenshot. Extract ALL visible metrics, numbers, and performance data. Include video counts, views, engagement rates, likes, comments, shares, or whatever is visible. Be specific with numbers. If it shows top performing content, describe what you see about each piece including any visible metrics, thumbnails, or captions.'}
-    ]}]);
-    return data?.content?.map(i=>i.text||'').join('')||'Could not read — enter details manually below';
-  }
-
-  async function generatePrompts(review,scope){
-    setAiLoading(true);setAiResult(null);
-    try{
-      const client=clients.find(c=>c.id===review.client_id);
-      const prompt=`You are a senior TikTok UGC content strategist coaching Project Managers at BW Club, a UGC marketing agency working with Fortune 500 companies and top apps.
-
-Your job is to make the PM THINK deeply about what's working and how to replicate it. Don't let them get away with surface-level answers. Push them to identify formulas, patterns, and actionable creative strategies.
-
-CLIENT: ${client?.name||'Unknown'} | ${client?.industry||''}
-
-${scope?`SCOPE: ${scope.live_posts}/${scope.scope_goal} videos (${scope.videos_left>0?scope.videos_left+' left':Math.abs(scope.videos_left)+' OVER scope'}) | Period: ${scope.scope_start} → ${scope.scope_end}
-${scope.scope_notes?'Notes: '+scope.scope_notes:''}
-${scope.standup_notes?'Standup: '+scope.standup_notes:''}`:''} 
-
-OVERALL PERFORMANCE DATA:
-${review.growi_summary||'No performance data available'}
-
-TOP PERFORMING CONTENT:
-${review.top_performers_summary||'No top performer data'}
-
-WHY THIS IS WORKING (Admin context):
-${review.admin_context||'No context provided'}
-
-Generate exactly 5 learning prompts. They should:
-1. Force the PM to identify specifically WHY certain content outperformed — not just that it did
-2. Break down the FORMULA: what hook type, video structure, pacing, and CTA drove results
-3. Push them to come up with 3+ new content ideas that apply the same winning formula  
-4. Connect creative patterns to actual numbers — "this format got X views because..."
-5. Challenge them to identify what's NOT working and propose what to kill or change
-
-Write like a mentor who's invested in their growth, not a corporate questionnaire.
-
-Also write a 2-3 sentence snapshot summarizing where this client stands right now.
-
-Return ONLY JSON: {"snapshot":"...","prompts":["...","...","...","...","..."]}`;
-
-      const data=await callClaude([{role:'user',content:prompt}]);
-      const txt=data?.content?.map(i=>i.text||'').join('')||'';
-      setAiResult(JSON.parse(txt.replace(/```json|```/g,'').trim()));
-    }catch(e){
-      console.error('Prompts:',e);
-      setAiResult({
-        snapshot:'New review data is ready. Study the performance metrics and top performers below, then work through the prompts.',
-        prompts:[
-          'Look at the top performing content — what specific hook style, format, or structure do they share? Break down the formula you see.',
-          'If you had to create 5 new videos tomorrow using ONLY what worked this period, what would they be? Be specific about hooks, formats, and CTAs.',
-          'Which content underperformed and why? What would you change or kill entirely?',
-          'Compare the engagement rates across different content types — what does this tell you about what the audience actually wants vs what we think they want?',
-          'What\'s one creative risk you\'d take next period based on what you\'re seeing in the data? Why?'
-        ]
-      });
+    function uid() { return Math.random().toString(36).slice(2,9); }
+    function extractTikTokPostDate(url) {
+      if(!url) return null;
+      const match=url.match(/\/video\/(\d+)/);
+      if(!match) return null;
+      try { const id=BigInt(match[1]); const ts=Number(id>>32n); if(ts<1000000000||ts>9999999999) return null; return new Date(ts*1000); } catch { return null; }
     }
-    setAiLoading(false);
-  }
+    function calcVideoBonus(likes) { if(!likes||likes<1000) return 0; if(likes>=10000) return 150; return 75; }
+    function bonusLabel(likes) { if(!likes||likes<1000) return null; if(likes>=10000) return "10K+ 🎉 $150"; return "1K+ ⭐ $75"; }
+    function calcProjectBonuses(links) {
+      const byProject={};
+      links.filter(l=>!l.duplicate&&l.status!=="draft").forEach(l=>{
+        const key=`${l.pmId}__${l.client}`;
+        if(!byProject[key]) byProject[key]={pmId:l.pmId,pmName:l.pmName,client:l.client,raw:0};
+        byProject[key].raw+=calcVideoBonus(l.likes||0);
+      });
+      Object.values(byProject).forEach(p=>{p.capped=Math.min(p.raw,500);});
+      return byProject;
+    }
 
-  async function refreshSheet(){
-    setSheetRefreshing(true);
-    try{const res=await fetch('/.netlify/functions/refresh-sheet');const data=await res.json();
-      if(data.success&&data.data){const m={};data.data.forEach(r=>{m[r.client_id]=r});setScopeData(m)}
-    }catch(e){console.error('Sheet:',e)}
-    setSheetRefreshing(false);
-  }
+    function App() {
+      const [pms, setPms] = useState([]);
+      const [links, setLinks] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [loadError, setLoadError] = useState("");
+      const [saving, setSaving] = useState(false);
+      const [tab, setTab] = useState(0);
 
-  // ═══════════════════════════════════════════════════════════════════
-  if(loading)return<div style={{fontFamily:F.body,background:C.bg,color:C.text,minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center'}}><div style={{textAlign:'center'}}><div style={{fontSize:20,animation:'spin 1s linear infinite',marginBottom:12}}>⟳</div><div style={{color:C.sub}}>Loading...</div></div></div>;
+      const loadAll = useCallback(async () => {
+        let [pmsRaw, accsRaw, linksRaw] = await Promise.all([
+          sGet("pms","select=*&order=name"),
+          sGet("accounts","select=*"),
+          sGet("links","select=*&order=date.desc"),
+        ]);
+        if (!Array.isArray(pmsRaw) || pmsRaw.length === 0) {
+          await sPost("pms", DEFAULT_PMS.map(p=>({id:p.id,name:p.name})));
+          await sPost("accounts", DEFAULT_PMS.flatMap(p=>p.accounts.map(a=>({id:a.id,pm_id:p.id,client:a.client,username:a.username}))));
+          [pmsRaw, accsRaw] = await Promise.all([sGet("pms","select=*&order=name"), sGet("accounts","select=*")]);
+          linksRaw = [];
+        }
+        setPms((pmsRaw||[]).map(p=>({...p, accounts:(accsRaw||[]).filter(a=>a.pm_id===p.id)})));
+        setLinks((Array.isArray(linksRaw)?linksRaw:[]).map(dbToLink));
+      }, []);
 
-  // ─── LOGIN ────────────────────────────────────────────────────────
-  if(!user)return(
-    <div style={{fontFamily:F.body,background:C.bg,color:C.text,minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:48}}>
-      <div style={{textAlign:'center'}}>
-        <div style={{fontSize:12,fontWeight:700,color:C.accent,letterSpacing:'0.18em',textTransform:'uppercase',marginBottom:14}}>BW Club</div>
-        <h1 style={{fontFamily:F.display,fontSize:38,fontWeight:600,margin:0}}>PM Learning Portal</h1>
-        <p style={{color:C.sub,marginTop:10}}>Select your profile</p>
-      </div>
-      <div style={{display:'flex',gap:14,flexWrap:'wrap',justifyContent:'center',maxWidth:600}}>
-        {users.map(u=><div key={u.id} onClick={()=>{setUser(u);setView('dashboard')}} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:'24px',cursor:'pointer',textAlign:'center',minWidth:110,transition:'all 0.2s'}} onMouseEnter={e=>e.currentTarget.style.borderColor=C.accent} onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>
-          <div style={{width:42,height:42,borderRadius:'50%',background:u.role==='admin'?C.accentDim:C.blueDim,color:u.role==='admin'?C.accent:C.blue,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:700,margin:'0 auto 10px'}}>{u.avatar}</div>
-          <div style={{fontWeight:600,fontSize:13}}>{u.name}</div>
-          <div style={{fontSize:10,color:C.muted,marginTop:3,textTransform:'uppercase'}}>{u.title}</div>
-        </div>)}
-      </div>
-    </div>
-  );
+      useEffect(() => {
+        (async () => {
+          try { await loadAll(); }
+          catch(e) { setLoadError("Could not connect to database."); }
+          setLoading(false);
+        })();
+      }, [loadAll]);
 
-  // ═══════════════════════════════════════════════════════════════════
-  // ADMIN: UPLOAD REVIEW
-  // ═══════════════════════════════════════════════════════════════════
-  function AdminUploadView(){
-    const[clientId,setClientId]=useState('');
-    const[growiFile,setGrowiFile]=useState(null);const[growiPrev,setGrowiPrev]=useState(null);const[growiSum,setGrowiSum]=useState('');
-    const[topFiles,setTopFiles]=useState([]);const[topPrevs,setTopPrevs]=useState([]);const[topSum,setTopSum]=useState('');
-    const[topLinks,setTopLinks]=useState(['']);
-    const[adminCtx,setAdminCtx]=useState('');
-    const[step,setStep]=useState('');
-    const[submitted,setSubmitted]=useState(false);
+      const wrap = useCallback(async (fn) => {
+        setSaving(true);
+        try { await fn(); } catch(e) { console.error(e); }
+        setSaving(false);
+      }, []);
 
-    const addTop=(f)=>{setTopFiles(p=>[...p,f]);setTopPrevs(p=>[...p,URL.createObjectURL(f)])};
-    const removeTop=(i)=>{setTopFiles(p=>p.filter((_,j)=>j!==i));setTopPrevs(p=>p.filter((_,j)=>j!==i))};
-    const addLink=()=>setTopLinks(p=>[...p,'']);
-    const setLink=(i,v)=>{const n=[...topLinks];n[i]=v;setTopLinks(n)};
-    const removeLink=(i)=>setTopLinks(p=>p.filter((_,j)=>j!==i));
+      const handleAddPm = useCallback(async (name) => {
+        const id=uid();
+        await wrap(async()=>{ await sPost("pms",{id,name}); setPms(p=>[...p,{id,name,accounts:[]}]); });
+        return id;
+      }, [wrap]);
 
-    const extractAll=async()=>{
-      let gs='',ts='';
-      if(growiFile){setStep('Reading Growi dashboard...');gs=await extractScreenshot(growiFile);setGrowiSum(gs)}
-      if(topFiles.length>0){
-        const parts=[];
-        for(let i=0;i<topFiles.length;i++){setStep(`Reading top performer ${i+1} of ${topFiles.length}...`);parts.push(`Top Performer ${i+1}:\n${await extractScreenshot(topFiles[i])}`);}
-        ts=parts.join('\n\n');setTopSum(ts);
-      }
-      setStep('done');
-    };
+      const handleRenamePm = useCallback(async (pmId, name) => {
+        await wrap(async()=>{ await sPatch("pms",`id=eq.${pmId}`,{name}); setPms(p=>p.map(pm=>pm.id===pmId?{...pm,name}:pm)); });
+      }, [wrap]);
 
-    const submit=async()=>{
-      if(!clientId)return;
-      const id=`rev_${Date.now()}`;
-      const row={id,client_id:clientId,growi_summary:growiSum,top_performers_summary:topSum,top_links:topLinks.filter(l=>l.trim()),admin_context:adminCtx,submitted_by:user.id,created_at:new Date().toISOString()};
-      await sb.from('reviews').insert(row);
-      setReviews(p=>[row,...p]);
-      setSubmitted(true);
-    };
+      const handleAddAccount = useCallback(async (pmId, client, username) => {
+        const id=uid();
+        await wrap(async()=>{ await sPost("accounts",{id,pm_id:pmId,client,username}); setPms(p=>p.map(pm=>pm.id===pmId?{...pm,accounts:[...pm.accounts,{id,pm_id:pmId,client,username}]}:pm)); });
+      }, [wrap]);
 
-    if(submitted)return<div style={{maxWidth:500,margin:'100px auto',textAlign:'center'}}>
-      <div style={{width:64,height:64,borderRadius:'50%',background:C.greenDim,color:C.green,display:'flex',alignItems:'center',justifyContent:'center',fontSize:28,margin:'0 auto 20px'}}>✓</div>
-      <h2 style={{fontFamily:F.display,fontSize:24,fontWeight:600,marginBottom:8}}>Review Published</h2>
-      <p style={{color:C.sub,marginBottom:28,lineHeight:1.6}}>Your PMs will see this on their dashboard with AI-generated learning prompts tailored to the data you uploaded.</p>
-      <div style={{display:'flex',gap:10,justifyContent:'center'}}>
-        <Btn onClick={()=>{setSubmitted(false);setClientId('');setGrowiFile(null);setGrowiPrev(null);setGrowiSum('');setTopFiles([]);setTopPrevs([]);setTopSum('');setTopLinks(['']);setAdminCtx('');setStep('')}}>Upload Another</Btn>
-        <Btn variant='outline' onClick={()=>nav('dashboard')}>Dashboard</Btn>
-      </div>
-    </div>;
+      const handleRemoveAccount = useCallback(async (pmId, accountId) => {
+        await wrap(async()=>{ await sDel("accounts",`id=eq.${accountId}`); setPms(p=>p.map(pm=>pm.id===pmId?{...pm,accounts:pm.accounts.filter(a=>a.id!==accountId)}:pm)); });
+      }, [wrap]);
 
-    return<div style={{maxWidth:780}}>
-      <Btn variant='ghost' onClick={()=>nav('dashboard')}>← Back</Btn>
-      <h1 style={{fontFamily:F.display,fontSize:28,fontWeight:600,margin:'20px 0 4px'}}>Upload Client Review</h1>
-      <p style={{color:C.sub,marginBottom:28}}>Drop screenshots + share your insights → PMs get tailored learning prompts</p>
+      const handleAddLink = useCallback(async (newLink) => {
+        await wrap(async()=>{
+          const isDupe=newLink.status!=="draft"&&links.some(x=>x.url&&x.url.trim()===newLink.url.trim()&&x.status!=="draft");
+          const final={...newLink,duplicate:isDupe};
+          await sPost("links",linkToDb(final));
+          setLinks(l=>[final,...l]);
+        });
+      }, [wrap, links]);
 
-      <Card>
-        {/* CLIENT SELECT */}
-        <Label>Client</Label>
-        <Sel value={clientId} onChange={e=>setClientId(e.target.value)}><option value=''>Select client...</option>{clients.map(cl=><option key={cl.id} value={cl.id}>{cl.name}</option>)}</Sel>
-        {clientId&&scopeData[clientId]&&<div style={{marginTop:14}}><ScopeBar current={scopeData[clientId].live_posts} goal={scopeData[clientId].scope_goal}/></div>}
+      const handleUpdateLink = useCallback(async (id, updates) => {
+        await wrap(async()=>{ await sPatch("links",`id=eq.${id}`,updToDb(updates)); setLinks(l=>l.map(x=>x.id===id?{...x,...updates}:x)); });
+      }, [wrap]);
 
-        <Dv/>
+      const handleDeleteLink = useCallback(async (id) => {
+        await wrap(async()=>{ await sDel("links",`id=eq.${id}`); setLinks(l=>l.filter(x=>x.id!==id)); });
+      }, [wrap]);
 
-        {/* GROWI */}
-        <Label>Growi Performance Screenshot</Label>
-        <div onClick={()=>{const i=document.createElement('input');i.type='file';i.accept='image/*';i.onchange=e=>{const f=e.target.files[0];if(f){setGrowiFile(f);setGrowiPrev(URL.createObjectURL(f))}};i.click()}} style={{background:C.bg,border:`2px dashed ${C.border}`,borderRadius:10,padding:growiPrev?'12px':'32px 20px',textAlign:'center',cursor:'pointer',transition:'border-color 0.2s'}} onMouseEnter={e=>e.currentTarget.style.borderColor=C.accent} onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>
-          {growiPrev?<img src={growiPrev} style={{maxWidth:'100%',maxHeight:220,borderRadius:8}}/>:<div style={{color:C.muted}}>Click to upload Growi dashboard screenshot</div>}
-        </div>
+      const handleClearAll = useCallback(async () => {
+        await wrap(async()=>{ await sDel("links","id=not.is.null"); setLinks([]); });
+      }, [wrap]);
 
-        <Dv/>
+      const handleRefresh = useCallback(async () => {
+        setSaving(true);
+        try { await loadAll(); } catch(e) {}
+        setSaving(false);
+      }, [loadAll]);
 
-        {/* TOP PERFORMERS */}
-        <Label>Top Performer Screenshots</Label>
-        <p style={{fontSize:12,color:C.muted,marginBottom:10}}>Upload screenshots of the winning videos — the PMs will study these</p>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))',gap:10}}>
-          {topPrevs.map((p,i)=><div key={i} style={{position:'relative',borderRadius:8,overflow:'hidden',border:`1px solid ${C.border}`}}>
-            <img src={p} style={{width:'100%',height:130,objectFit:'cover'}}/>
-            <div onClick={(e)=>{e.stopPropagation();removeTop(i)}} style={{position:'absolute',top:6,right:6,width:22,height:22,borderRadius:'50%',background:'rgba(0,0,0,0.7)',color:C.red,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',fontSize:12,fontWeight:700}}>×</div>
-          </div>)}
-          <div onClick={()=>{const i=document.createElement('input');i.type='file';i.accept='image/*';i.multiple=true;i.onchange=e=>{Array.from(e.target.files).forEach(f=>addTop(f))};i.click()}} style={{background:C.bg,border:`2px dashed ${C.border}`,borderRadius:8,minHeight:130,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:C.muted,fontSize:13,flexDirection:'column',gap:4}} onMouseEnter={e=>e.currentTarget.style.borderColor=C.green} onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>
-            <span style={{fontSize:20}}>+</span>
-            <span>Add screenshots</span>
-          </div>
-        </div>
+      if (loading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:"#000"}}><div style={{textAlign:"center"}}><div style={{fontSize:"2rem"}}>⏳</div><p style={{color:"white",fontSize:"0.875rem",marginTop:"1rem"}}>Connecting to database…</p></div></div>;
+      if (loadError) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:"#000"}}><div style={{background:"#0d0014",border:"1px solid #3b0764",borderRadius:"12px",padding:"2rem",textAlign:"center",maxWidth:"320px"}}><p style={{color:"#f87171"}}>{loadError}</p><button onClick={()=>window.location.reload()} style={{background:"#7c3aed",color:"white",border:"none",borderRadius:"8px",padding:"8px 16px",marginTop:"1rem",cursor:"pointer"}}>Retry</button></div></div>;
 
-        {/* LINKS */}
-        <div style={{marginTop:16}}>
-          <Label>TikTok Links for Top Performers</Label>
-          {topLinks.map((l,i)=><div key={i} style={{display:'flex',gap:8,marginBottom:8,alignItems:'center'}}>
-            <Inp value={l} onChange={e=>setLink(i,e.target.value)} placeholder={`https://tiktok.com/... (video ${i+1})`}/>
-            {topLinks.length>1&&<div onClick={()=>removeLink(i)} style={{color:C.red,cursor:'pointer',fontSize:16,padding:'0 4px'}}>×</div>}
-          </div>)}
-          <Btn variant='ghost' onClick={addLink} sx={{fontSize:12,padding:'4px 10px',marginTop:2}}>+ Add link</Btn>
-        </div>
+      const draftCount = links.filter(l=>l.status==="draft").length;
 
-        <Dv/>
-
-        {/* ADMIN CONTEXT */}
-        <Label>Why is this content winning?</Label>
-        <p style={{fontSize:12,color:C.muted,marginBottom:8}}>Your analysis shapes the AI prompts. Talk about hooks, formats, CTAs, pacing — what's the formula?</p>
-        <Txa value={adminCtx} onChange={e=>setAdminCtx(e.target.value)} placeholder="Example: The POV-style hooks are crushing it — anything that starts with 'I tried...' or 'Nobody talks about...' is getting 3-5x the views. The 15-second format with a hard CTA at the end converts way better than the longer storytelling format we tested." style={{minHeight:120}}/>
-
-        <Dv/>
-
-        {/* EXTRACT + SUBMIT */}
-        {step===''&&(growiFile||topFiles.length>0)&&<div style={{textAlign:'center',marginBottom:16}}>
-          <Btn onClick={extractAll} sx={{padding:'12px 32px',fontSize:14}}>📷 Read Screenshots with Claude</Btn>
-          <div style={{fontSize:11,color:C.muted,marginTop:6}}>Claude will extract all the data from your screenshots</div>
-        </div>}
-
-        {step&&step!=='done'&&<div style={{textAlign:'center',padding:'24px 0'}}><div style={{color:C.sub}}><span style={{display:'inline-block',animation:'spin 1s linear infinite',marginRight:8,fontSize:16}}>⟳</span>{step}</div></div>}
-
-        {step==='done'&&<>
-          {growiSum&&<Card style={{marginBottom:12,padding:'14px 18px'}}><div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}><span style={{color:C.green}}>✓</span><span style={{fontSize:10,fontWeight:700,color:C.accent,textTransform:'uppercase'}}>Growi Data Extracted</span></div><p style={{fontSize:13,color:C.sub,lineHeight:1.7,margin:0,whiteSpace:'pre-wrap'}}>{growiSum}</p></Card>}
-          {topSum&&<Card style={{marginBottom:12,padding:'14px 18px'}}><div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}><span style={{color:C.green}}>✓</span><span style={{fontSize:10,fontWeight:700,color:C.green,textTransform:'uppercase'}}>Top Performers Extracted</span></div><p style={{fontSize:13,color:C.sub,lineHeight:1.7,margin:0,whiteSpace:'pre-wrap'}}>{topSum}</p></Card>}
-        </>}
-
-        {(step==='done'||(!growiFile&&topFiles.length===0))&&<div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:16}}>
-          <Btn variant='outline' onClick={()=>nav('dashboard')}>Cancel</Btn>
-          <Btn disabled={!clientId||(!growiSum&&!adminCtx)} onClick={submit} sx={{padding:'12px 32px'}}>Publish Review for PMs</Btn>
-        </div>}
-      </Card>
-    </div>;
-  }
-
-  // ═══════════════════════════════════════════════════════════════════
-  // PM: LEARNING REVIEW
-  // ═══════════════════════════════════════════════════════════════════
-  function PMLearningView(){
-    const review=selReview;
-    const client=clients.find(c=>c.id===review?.client_id);
-    const scope=scopeData[client?.id];
-    const existing=learnings.find(l=>l.review_id===review?.id&&l.pm_id===user?.id);
-    const[answers,setAnswers]=useState(['','','','','']);
-    const[takeaway,setTakeaway]=useState('');
-
-    useEffect(()=>{
-      if(review&&!existing&&!aiResult)generatePrompts(review,scope);
-      if(existing){
-        setAnswers(existing.answers||['','','','','']);
-        setTakeaway(existing.key_takeaway||'');
-        if(!aiResult)setAiResult({snapshot:existing.snapshot,prompts:existing.prompts});
-      }
-    },[review?.id]);
-
-    if(!review||!client)return null;
-    const prompts=aiResult?.prompts||existing?.prompts||[];
-    const snapshot=aiResult?.snapshot||existing?.snapshot||'';
-    const allDone=prompts.length>0&&answers.slice(0,prompts.length).every(a=>a.trim())&&takeaway.trim();
-
-    const submit=async()=>{
-      const id=`learn_${Date.now()}`;
-      const row={id,review_id:review.id,client_id:client.id,pm_id:user.id,snapshot,prompts,answers:answers.slice(0,prompts.length),key_takeaway:takeaway,status:'submitted',created_at:new Date().toISOString()};
-      await sb.from('learnings').insert(row);
-      setLearnings(p=>[row,...p]);
-      nav('dashboard');
-    };
-
-    return<div style={{maxWidth:820}}>
-      <Btn variant='ghost' onClick={()=>nav('dashboard')}>← Back</Btn>
-      <div style={{display:'flex',alignItems:'center',gap:14,margin:'20px 0 4px'}}>
-        <h1 style={{fontFamily:F.display,fontSize:28,fontWeight:600,margin:0}}>{client.name}</h1>
-        {existing&&<Badge label='Completed' color={C.green} bg={C.greenDim}/>}
-      </div>
-      <p style={{color:C.muted,fontSize:12,marginBottom:28}}>{new Date(review.created_at).toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric',year:'numeric'})}</p>
-
-      {/* SCOPE */}
-      {scope&&<Card style={{marginBottom:14,padding:'16px 20px'}}>
-        <SH color={C.yellow}>Scope Status</SH>
-        <ScopeBar current={scope.live_posts} goal={scope.scope_goal}/>
-        <div style={{display:'flex',gap:20,marginTop:10,fontSize:12,color:C.sub}}>
-          <span>{scope.videos_left>0?`${scope.videos_left} remaining`:`${Math.abs(scope.videos_left)} over scope`}</span>
-          <span>·</span>
-          <span>{scope.scope_start} → {scope.scope_end}</span>
-        </div>
-        {scope.scope_notes&&<div style={{marginTop:8,fontSize:12,color:C.sub}}><span style={{color:C.yellow,fontWeight:600}}>Notes: </span>{scope.scope_notes}</div>}
-        {scope.standup_notes&&<div style={{marginTop:4,fontSize:12,color:C.sub}}><span style={{color:C.yellow,fontWeight:600}}>Standup: </span>{scope.standup_notes}</div>}
-      </Card>}
-
-      {/* PERFORMANCE DATA */}
-      {review.growi_summary&&<Card style={{marginBottom:14}}>
-        <SH>Overall Performance</SH>
-        <p style={{fontSize:13,lineHeight:1.7,color:C.sub,whiteSpace:'pre-wrap',margin:0}}>{review.growi_summary}</p>
-      </Card>}
-
-      {/* TOP PERFORMERS */}
-      {(review.top_performers_summary||review.top_links?.length>0)&&<Card style={{marginBottom:14}}>
-        <SH color={C.green}>Top Performers — Study These Closely</SH>
-        {review.top_performers_summary&&<p style={{fontSize:13,lineHeight:1.7,color:C.sub,whiteSpace:'pre-wrap',margin:0,marginBottom:review.top_links?.length>0?14:0}}>{review.top_performers_summary}</p>}
-        {review.top_links?.length>0&&<div style={{display:'flex',flexDirection:'column',gap:6}}>
-          {review.top_links.map((l,i)=>l&&<a key={i} href={l} target='_blank' rel='noreferrer' style={{display:'inline-flex',alignItems:'center',gap:6,color:C.accent,textDecoration:'none',fontSize:13,padding:'6px 12px',background:C.accentGlow,borderRadius:6,border:`1px solid ${C.accentMed}`,width:'fit-content'}}>🔗 Watch Video {i+1}</a>)}
-        </div>}
-      </Card>}
-
-      {/* ADMIN CONTEXT — THE "WHY" */}
-      {review.admin_context&&<Card glow style={{marginBottom:14}}>
-        <SH>Why This is Working — From Leadership</SH>
-        <p style={{fontSize:14,lineHeight:1.8,margin:0}}>{review.admin_context}</p>
-      </Card>}
-
-      {/* AI LOADING */}
-      {aiLoading&&<Card style={{textAlign:'center',padding:50,marginBottom:14}}>
-        <div style={{display:'inline-block',animation:'spin 1s linear infinite',fontSize:22,marginBottom:8}}>⟳</div>
-        <div style={{color:C.sub,fontSize:14}}>Building your learning prompts...</div>
-      </Card>}
-
-      {/* SNAPSHOT */}
-      {snapshot&&!aiLoading&&<Card glow style={{marginBottom:14}}>
-        <SH>This Period's Snapshot</SH>
-        <p style={{margin:0,lineHeight:1.7,fontSize:14}}>{snapshot}</p>
-      </Card>}
-
-      {/* LEARNING PROMPTS */}
-      {prompts.length>0&&!aiLoading&&<Card style={{marginBottom:14}}>
-        <SH>Learning Prompts — Go Deep</SH>
-        <p style={{fontSize:12,color:C.muted,marginBottom:20,lineHeight:1.5}}>Don't just skim — study the data and top performers above, then give thoughtful answers. This is how you level up.</p>
-        {prompts.map((q,i)=><div key={i} style={{marginBottom:24}}>
-          <div style={{fontSize:14,fontWeight:600,marginBottom:10,lineHeight:1.6}}>
-            <span style={{color:C.accent,marginRight:10,fontFamily:F.display,fontSize:16}}>{i+1}</span>{q}
-          </div>
-          <Txa value={answers[i]||''} onChange={e=>{const n=[...answers];n[i]=e.target.value;setAnswers(n)}} disabled={!!existing} placeholder={existing?'':'Take your time with this one...'} style={{minHeight:85,opacity:existing?0.85:1}}/>
-        </div>)}
-
-        <Dv/>
-
-        <div>
-          <div style={{fontSize:15,fontWeight:600,marginBottom:10}}>
-            <span style={{color:C.accent,marginRight:10}}>→</span>Key Takeaway
-          </div>
-          <p style={{fontSize:12,color:C.muted,marginBottom:8}}>What's your #1 learning from this review? What will you do differently?</p>
-          <Txa value={takeaway} onChange={e=>setTakeaway(e.target.value)} disabled={!!existing} placeholder={existing?'':"Summarize your biggest insight..."} style={{minHeight:70,borderColor:C.accentMed}}/>
-        </div>
-
-        {!existing&&<div style={{display:'flex',justifyContent:'flex-end',marginTop:24}}>
-          <Btn disabled={!allDone} onClick={submit} sx={{padding:'14px 36px',fontSize:14}}>Submit Learnings</Btn>
-        </div>}
-      </Card>}
-    </div>;
-  }
-
-  // ═══════════════════════════════════════════════════════════════════
-  // PM: LEARNINGS HISTORY
-  // ═══════════════════════════════════════════════════════════════════
-  function HistoryView(){
-    const mine=isPM;
-    const all=mine?learnings.filter(l=>l.pm_id===user?.id):learnings;
-    const filtered=selClientFilter?all.filter(l=>l.client_id===selClientFilter):all;
-    const filterClients=mine?myClients:clients;
-
-    return<div style={{maxWidth:820}}>
-      <Btn variant='ghost' onClick={()=>nav('dashboard')}>← Back</Btn>
-      <h1 style={{fontFamily:F.display,fontSize:28,fontWeight:600,margin:'20px 0 4px'}}>{mine?'My Learnings':'PM Learnings'}</h1>
-      <p style={{color:C.sub,marginBottom:20}}>{mine?'Your growth over time — every insight adds up.':'See how your PMs are developing their strategic thinking.'}</p>
-
-      {/* Filter */}
-      <div style={{display:'flex',gap:8,marginBottom:24,flexWrap:'wrap'}}>
-        <Btn variant={!selClientFilter?'primary':'outline'} onClick={()=>setSelClientFilter(null)} sx={{fontSize:11,padding:'6px 14px'}}>All Clients</Btn>
-        {filterClients.map(cl=><Btn key={cl.id} variant={selClientFilter===cl.id?'primary':'outline'} onClick={()=>setSelClientFilter(cl.id)} sx={{fontSize:11,padding:'6px 14px'}}>{cl.name}</Btn>)}
-      </div>
-
-      {filtered.length===0&&<Card style={{textAlign:'center',padding:50}}><div style={{color:C.muted,fontSize:14}}>No learnings yet{mine?' — complete your first review to start building history.':'.'}</div></Card>}
-
-      {filtered.map(l=>{
-        const client=clients.find(c=>c.id===l.client_id);
-        const pm=getPM(l.pm_id);
-        return<Card key={l.id} style={{marginBottom:16}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
-            <div style={{display:'flex',alignItems:'center',gap:10}}>
-              <span style={{fontWeight:600,fontSize:16}}>{client?.name}</span>
-              {!mine&&<Badge label={pm?.name} color={C.blue} bg={C.blueDim}/>}
-              <span style={{fontSize:11,color:C.muted}}>{new Date(l.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>
-            </div>
-          </div>
-
-          {l.snapshot&&<div style={{background:C.accentGlow,borderRadius:8,padding:'12px 16px',marginBottom:14,fontSize:13,lineHeight:1.6,border:`1px solid ${C.accentMed}`}}>{l.snapshot}</div>}
-
-          {l.key_takeaway&&<div style={{marginBottom:14,padding:'12px 16px',background:C.alt,borderRadius:8,borderLeft:`3px solid ${C.accent}`}}>
-            <div style={{fontSize:10,fontWeight:700,color:C.accent,textTransform:'uppercase',marginBottom:4}}>Key Takeaway</div>
-            <p style={{margin:0,fontSize:14,lineHeight:1.6}}>{l.key_takeaway}</p>
-          </div>}
-
-          {l.prompts?.map((q,i)=><div key={i} style={{marginBottom:10}}>
-            <div style={{fontSize:11,fontWeight:600,color:C.muted,marginBottom:4}}>{i+1}. {q}</div>
-            <div style={{fontSize:13,lineHeight:1.6,color:C.sub,paddingLeft:14,borderLeft:`2px solid ${C.border}`}}>{l.answers?.[i]||'—'}</div>
-          </div>)}
-        </Card>;
-      })}
-    </div>;
-  }
-
-  // ═══════════════════════════════════════════════════════════════════
-  // DASHBOARD
-  // ═══════════════════════════════════════════════════════════════════
-  function DashboardView(){
-    return<div>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:28}}>
-        <div>
-          <h1 style={{fontFamily:F.display,fontSize:28,fontWeight:600,margin:0}}>{isPM?'Your Reviews':'Client Dashboard'}</h1>
-          <p style={{color:C.sub,marginTop:4,fontSize:13}}>
-            {isAdmin?`${reviews.length} reviews published · ${learnings.length} PM learnings`
-            :isPM&&pendingForPM.length>0?`${pendingForPM.length} new review${pendingForPM.length!==1?'s':''} waiting for you`
-            :isPM?'All caught up — check your learnings history!'
-            :''}
-          </p>
-        </div>
-        {isAdmin&&<Btn variant='outline' onClick={refreshSheet} sx={{fontSize:12}}>{sheetRefreshing?'Refreshing...':'⟳ Refresh Sheet'}</Btn>}
-      </div>
-
-      {/* PM: PENDING REVIEWS */}
-      {isPM&&pendingForPM.length>0&&<div style={{marginBottom:32}}>
-        <SH color={C.accent}>New Reviews — Ready for You</SH>
-        {pendingForPM.map(r=>{
-          const cl=clients.find(c=>c.id===r.client_id);
-          return<Card key={r.id} hoverable onClick={()=>{setSelReview(r);setAiResult(null);setView('pmLearning')}} style={{padding:'18px 22px',marginBottom:10,borderColor:C.accentMed}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <div style={{display:'flex',alignItems:'center',gap:12}}>
-                <span style={{fontWeight:600,fontSize:16}}>{cl?.name}</span>
-                <span style={{color:C.sub,fontSize:12}}>{new Date(r.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
+      return (
+        <div className="min-h-screen bg-black text-white font-sans">
+          <div style={{background:"#0d0014"}} className="border-b border-purple-900 px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div style={{background:"#7c3aed"}} className="w-8 h-8 rounded-lg flex items-center justify-center text-lg">▶</div>
+              <div>
+                <h1 className="font-bold text-lg leading-tight text-white">BW Club PM Content Tracker</h1>
+                <p style={{color:"#a78bfa"}} className="text-xs">2026 · Live Shared Database</p>
               </div>
-              <Badge label='New' color={C.accent} bg={C.accentDim}/>
             </div>
-            {r.admin_context&&<p style={{margin:'8px 0 0',fontSize:12,color:C.muted,lineHeight:1.5}}>{r.admin_context.slice(0,120)}{r.admin_context.length>120?'...':''}</p>}
-          </Card>;
-        })}
-      </div>}
-
-      {/* CLIENT CARDS */}
-      <SH>{isAdmin?'All Clients':'Your Clients'}</SH>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(290px,1fr))',gap:14}}>
-        {myClients.map(cl=>{
-          const scope=scopeData[cl.id];
-          const clientReviews=reviews.filter(r=>r.client_id===cl.id);
-          const clientLearnings=learnings.filter(l=>l.client_id===cl.id&&(isPM?l.pm_id===user?.id:true));
-          const hasPending=isPM&&clientReviews.some(r=>!learnings.find(l=>l.review_id===r.id&&l.pm_id===user?.id));
-          const latestReview=clientReviews[0];
-
-          return<Card key={cl.id} hoverable={isPM&&!!hasPending} onClick={()=>{
-            if(isPM&&hasPending&&latestReview){
-              const pending=clientReviews.find(r=>!learnings.find(l=>l.review_id===r.id&&l.pm_id===user?.id));
-              if(pending){setSelReview(pending);setAiResult(null);setView('pmLearning')}
-            }
-          }} style={{borderColor:hasPending?C.accentMed:C.border,position:'relative'}}>
-            {hasPending&&<div style={{position:'absolute',top:12,right:12}}><Badge label='Review Pending' color={C.accent} bg={C.accentDim}/></div>}
-            <div style={{fontSize:16,fontWeight:600,marginBottom:2}}>{cl.name}</div>
-            {cl.industry&&<div style={{fontSize:11,color:C.muted,marginBottom:2}}>{cl.industry}</div>}
-            {isAdmin&&<div style={{fontSize:11,color:C.sub,marginBottom:8}}>PM: {getPM(cl.assigned_pm)?.name}</div>}
-            {scope&&<div style={{marginTop:6,marginBottom:8}}><ScopeBar current={scope.live_posts} goal={scope.scope_goal}/></div>}
-            <div style={{display:'flex',gap:16,fontSize:12,color:C.sub,marginTop:8}}>
-              <span>{clientReviews.length} review{clientReviews.length!==1?'s':''}</span>
-              <span>·</span>
-              <span>{clientLearnings.length} learning{clientLearnings.length!==1?'s':''}</span>
+            <div className="flex items-center gap-3">
+              {saving && <span style={{color:"#fbbf24"}} className="text-xs">Saving…</span>}
+              <button onClick={handleRefresh} style={{background:"#1a0030",borderColor:"#4c1d95"}} className="border rounded-lg px-3 py-1.5 text-xs text-purple-300 hover:text-white">↺ Refresh</button>
             </div>
-          </Card>;
-        })}
-      </div>
-    </div>;
-  }
+          </div>
 
-  // ═══════════════════════════════════════════════════════════════════
-  // LAYOUT
-  // ═══════════════════════════════════════════════════════════════════
-  const sidebar=isAdmin
-    ?[{id:'dashboard',label:'Dashboard',icon:'◉'},{id:'adminUpload',label:'Upload Review',icon:'▶'},{id:'history',label:'PM Learnings',icon:'★'}]
-    :[{id:'dashboard',label:'My Reviews',icon:'◉'},{id:'history',label:'My Learnings',icon:'★'}];
+          <div style={{background:"#0d0014"}} className="border-b border-purple-900 px-6 flex gap-1">
+            {TABS.map((t,i)=>(
+              <button key={i} onClick={()=>setTab(i)} className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors relative ${tab===i?"border-purple-400 text-purple-300":"border-transparent text-gray-400 hover:text-white"}`}>
+                {t}
+                {i===1&&draftCount>0&&<span style={{background:"#7c3aed"}} className="absolute -top-0.5 -right-1 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center leading-none">{draftCount}</span>}
+              </button>
+            ))}
+          </div>
 
-  return<div style={{fontFamily:F.body,background:C.bg,color:C.text,minHeight:'100vh',fontSize:14}}>
-    {/* SIDEBAR */}
-    <div style={{width:240,background:C.surface,borderRight:`1px solid ${C.border}`,height:'100vh',position:'fixed',left:0,top:0,display:'flex',flexDirection:'column',zIndex:10}}>
-      <div style={{padding:'20px 16px',borderBottom:`1px solid ${C.border}`}}>
-        <div style={{fontSize:11,fontWeight:700,color:C.accent,letterSpacing:'0.14em',textTransform:'uppercase'}}>BW Club</div>
-        <div style={{fontSize:14,fontWeight:600,marginTop:3}}>PM Learning Portal</div>
-      </div>
-      <nav style={{padding:'12px 8px',flex:1}}>
-        {sidebar.map(item=><div key={item.id} onClick={()=>nav(item.id)} style={{padding:'9px 12px',borderRadius:8,cursor:'pointer',display:'flex',alignItems:'center',gap:10,marginBottom:2,fontSize:13,fontWeight:view===item.id||view==='pmLearning'&&item.id==='dashboard'?600:400,color:view===item.id||view==='pmLearning'&&item.id==='dashboard'?C.text:C.sub,background:view===item.id||view==='pmLearning'&&item.id==='dashboard'?C.hover:'transparent',transition:'all 0.15s'}} onMouseEnter={e=>{e.currentTarget.style.background=C.hover}} onMouseLeave={e=>{if(view!==item.id&&!(view==='pmLearning'&&item.id==='dashboard'))e.currentTarget.style.background='transparent'}}>
-          <span style={{fontSize:12,width:16,textAlign:'center'}}>{item.icon}</span>{item.label}
-          {item.id==='dashboard'&&isPM&&pendingForPM.length>0&&<span style={{marginLeft:'auto',background:C.accent,color:C.bg,fontSize:10,fontWeight:700,padding:'2px 7px',borderRadius:10}}>{pendingForPM.length}</span>}
-        </div>)}
-      </nav>
-      <div style={{padding:'12px',borderTop:`1px solid ${C.border}`,display:'flex',alignItems:'center',gap:10}}>
-        <div style={{width:32,height:32,borderRadius:'50%',background:isAdmin?C.accentDim:C.blueDim,color:isAdmin?C.accent:C.blue,display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:700}}>{user.avatar}</div>
-        <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600}}>{user.name}</div><div style={{fontSize:10,color:C.muted}}>{user.title}</div></div>
-        <Btn variant='ghost' onClick={()=>{setUser(null);nav('dashboard')}} sx={{padding:'4px 8px',fontSize:10}}>Switch</Btn>
-      </div>
-    </div>
+          <div className="p-6">
+            {tab===0 && <LogTab pms={pms} links={links} onAddLink={handleAddLink} />}
+            {tab===1 && <DraftsTab pms={pms} links={links} onUpdateLink={handleUpdateLink} />}
+            {tab===2 && <ManageTab pms={pms} onAddPm={handleAddPm} onRenamePm={handleRenamePm} onAddAccount={handleAddAccount} onRemoveAccount={handleRemoveAccount} />}
+            {tab===3 && <AdminGate pms={pms} links={links} onDeleteLink={handleDeleteLink} onClearAll={handleClearAll} onUpdateLink={handleUpdateLink} onRefresh={handleRefresh} />}
+          </div>
+        </div>
+      );
+    }
 
-    {/* MAIN */}
-    <div style={{marginLeft:240,minHeight:'100vh',padding:'28px 36px'}}>
-      {view==='dashboard'&&<DashboardView/>}
-      {view==='adminUpload'&&isAdmin&&<AdminUploadView/>}
-      {view==='pmLearning'&&isPM&&<PMLearningView/>}
-      {view==='history'&&<HistoryView/>}
-    </div>
-  </div>;
-}
+    function LogTab({ pms, links, onAddLink }) {
+      const [pmId, setPmId] = useState("");
+      const [accId, setAccId] = useState("");
+      const [url, setUrl] = useState("");
+      const [likes, setLikes] = useState("");
+      const [manualDate, setManualDate] = useState("");
+      const [isDraft, setIsDraft] = useState(false);
+      const [error, setError] = useState("");
+      const [success, setSuccess] = useState(false);
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
-</script>
+      const pm = pms.find(p=>p.id===pmId);
+      const accounts = pm?.accounts??[];
+      const acc = accounts.find(a=>a.id===accId);
+      const postDate = extractTikTokPostDate(url);
+      const resolvedPostDate = postDate||(manualDate?new Date(manualDate+"T12:00:00"):null);
+      const likesNum = parseInt(likes.replace(/[^0-9]/g,""))||0;
+      const bl = bonusLabel(likesNum);
+      const iStyle = {background:"#1a0030",borderColor:"#4c1d95"};
+      const iCls = "w-full border rounded-lg px-3 py-2 text-sm focus:outline-none text-white placeholder-gray-500";
+
+      const submit = async () => {
+        if(!pmId||!accId||!url.trim()){setError("Please select a PM, account, and paste a link.");return;}
+        if(!isDraft&&!url.includes("tiktok.com")){setError("Only TikTok links can be logged as Live. Check 'This is a Draft' for Frame.io or other links.");return;}
+        if(!isDraft&&!resolvedPostDate){setError("Please enter the post date manually for this carousel/photo post.");return;}
+        await onAddLink({id:uid(),pmId,pmName:pm.name,accId,client:acc.client,username:acc.username,url:url.trim(),likes:isDraft?0:likesNum,date:new Date().toISOString(),postDate:isDraft?null:(resolvedPostDate?.toISOString()||null),manualDateUsed:!isDraft&&!postDate&&!!manualDate,status:isDraft?"draft":"live",duplicate:false});
+        setUrl(""); setLikes(""); setManualDate(""); setIsDraft(false); setError("");
+        setSuccess(true); setTimeout(()=>setSuccess(false),2000);
+      };
+
+      const recentLive = [...links].filter(l=>l.status!=="draft").sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
+
+      return (
+        <div className="max-w-xl mx-auto space-y-6">
+          <div style={{background:"#0d0014",borderColor:"#3b0764"}} className="border rounded-xl p-6 space-y-4">
+            <h2 className="font-semibold text-base text-white">Log a Video Link</h2>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label style={{color:"#c4b5fd"}} className="text-xs mb-1 block">Project Manager</label>
+                <select value={pmId} onChange={e=>{setPmId(e.target.value);setAccId("");}} style={{background:"#1a0030",borderColor:"#4c1d95",color:"white"}} className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none">
+                  <option value="">Select PM…</option>
+                  {pms.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{color:"#c4b5fd"}} className="text-xs mb-1 block">Account</label>
+                <select value={accId} onChange={e=>setAccId(e.target.value)} disabled={!pmId} style={{background:"#1a0030",borderColor:"#4c1d95",color:"white"}} className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none disabled:opacity-40">
+                  <option value="">Select account…</option>
+                  {accounts.map(a=><option key={a.id} value={a.id}>{a.client} — @{a.username}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <button onClick={()=>setIsDraft(v=>!v)} style={{background:isDraft?"#3b0764":"#1a0030",borderColor:isDraft?"#7c3aed":"#4c1d95"}} className="w-full border rounded-lg px-4 py-3 flex items-center gap-3 transition-colors text-left">
+              <div style={{background:isDraft?"#7c3aed":"#0d0014",borderColor:isDraft?"#7c3aed":"#4c1d95"}} className="w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-colors">
+                {isDraft&&<span className="text-white text-xs font-bold">✓</span>}
+              </div>
+              <div>
+                <p className="text-sm font-medium text-white">This is a Draft</p>
+                <p style={{color:"#a78bfa"}} className="text-xs">Check for Frame.io or unreleased links. Won't count toward billing until marked Live.</p>
+              </div>
+            </button>
+
+            <div>
+              <label style={{color:"#c4b5fd"}} className="text-xs mb-1 block">{isDraft?"Frame.io / Draft Link":"TikTok Video URL"}</label>
+              <input value={url} onChange={e=>setUrl(e.target.value)} placeholder={isDraft?"https://app.frame.io/...":"https://www.tiktok.com/@username/video/..."} style={iStyle} className={iCls}/>
+              {url&&!isDraft&&(
+                <div className="space-y-2 mt-1.5">
+                  {postDate
+                    ?<p className="text-xs" style={{color:"#86efac"}}>✓ Post date detected: <strong>{postDate.toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}</strong></p>
+                    :(<div style={{background:"#1a0020",borderColor:"#7c3aed"}} className="border rounded-lg p-3 space-y-2">
+                      <p className="text-xs font-semibold" style={{color:"#fbbf24"}}>⚠ Carousel/photo post — enter date manually:</p>
+                      <input type="date" value={manualDate} onChange={e=>setManualDate(e.target.value)} style={{background:"#0d0014",borderColor:"#4c1d95",colorScheme:"dark"}} className="w-full border rounded-lg px-3 py-2 text-sm text-white focus:outline-none"/>
+                      {manualDate&&<p className="text-xs" style={{color:"#86efac"}}>✓ Using: <strong>{new Date(manualDate+"T12:00:00").toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}</strong></p>}
+                    </div>)}
+                </div>
+              )}
+              {url&&isDraft&&<p className="text-xs mt-1.5" style={{color:"#a78bfa"}}>📝 Saved as draft — update to TikTok link in the Drafts tab when live.</p>}
+            </div>
+
+            {!isDraft&&(
+              <div>
+                <label style={{color:"#c4b5fd"}} className="text-xs mb-1 block">Like Count <span style={{color:"#6b21a8"}}>(optional — for bonus)</span></label>
+                <div className="flex gap-3 items-center">
+                  <input value={likes} onChange={e=>setLikes(e.target.value)} placeholder="e.g. 12500" style={iStyle} className={iCls}/>
+                  {likesNum>0&&(bl?<span className="text-sm font-bold shrink-0" style={{color:"#86efac"}}>{bl}</span>:<span className="text-xs shrink-0" style={{color:"#6b21a8"}}>No bonus yet</span>)}
+                </div>
+                <p className="text-xs mt-1.5" style={{color:"#6b21a8"}}>1K likes = $75 · 10K likes = $150 · capped at $500/project</p>
+              </div>
+            )}
+
+            {error&&<p className="text-red-400 text-sm">{error}</p>}
+            {success&&<p style={{color:"#86efac"}} className="text-sm">✓ {isDraft?"Saved as draft!":"Link logged!"}</p>}
+            <button onClick={submit} style={{background:isDraft?"#4c1d95":"#7c3aed"}} className="w-full hover:opacity-90 transition-opacity rounded-lg py-2 text-sm font-semibold text-white">
+              {isDraft?"📝 Save as Draft":"Log Live Link"}
+            </button>
+          </div>
+
+          {recentLive.length>0&&(
+            <div style={{background:"#0d0014",borderColor:"#3b0764"}} className="border rounded-xl p-5">
+              <h3 style={{color:"#c4b5fd"}} className="text-sm font-semibold mb-3">Recently Logged (Live)</h3>
+              <div className="space-y-2">
+                {recentLive.map(l=>(
+                  <div key={l.id} style={{background:"#1a0030"}} className="flex items-start gap-3 text-xs rounded-lg px-3 py-2">
+                    <div className="min-w-0 flex-1">
+                      <span className="text-white font-medium">{l.pmName}</span> · {l.client} · <span style={{color:"#a78bfa"}}>@{l.username}</span>
+                      {l.promotedFromDraft&&<span className="ml-2 px-1.5 py-0.5 rounded text-xs" style={{background:"#1a2a00",color:"#86efac"}}>draft→live</span>}
+                      {l.likes>0&&<span className="ml-2" style={{color:"#86efac"}}>{l.likes.toLocaleString()} likes{calcVideoBonus(l.likes)>0?` · $${calcVideoBonus(l.likes)}`:""}</span>}
+                      <div className="truncate text-gray-500 mt-0.5">{l.url}</div>
+                    </div>
+                    <span style={{color:"#6b21a8"}} className="shrink-0">{new Date(l.postDate||l.date).toLocaleDateString()}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function DraftsTab({ pms, links, onUpdateLink }) {
+      const [selectedPm, setSelectedPm] = useState("");
+      const [promotingId, setPromotingId] = useState(null);
+      const [tikTokUrl, setTikTokUrl] = useState("");
+      const [manualDate, setManualDate] = useState("");
+      const [likes, setLikes] = useState("");
+      const [promoteError, setPromoteError] = useState("");
+
+      const myDrafts = links.filter(l=>l.status==="draft"&&(!selectedPm||l.pmId===selectedPm)).sort((a,b)=>b.date.localeCompare(a.date));
+      const postDate = extractTikTokPostDate(tikTokUrl);
+      const resolvedDate = postDate||(manualDate?new Date(manualDate+"T12:00:00"):null);
+      const likesNum = parseInt((likes||"").replace(/[^0-9]/g,""))||0;
+
+      const submitPromote = async (draft) => {
+        if(!tikTokUrl.trim()||!tikTokUrl.includes("tiktok.com")){setPromoteError("Please paste a valid TikTok URL.");return;}
+        if(!resolvedDate){setPromoteError("Please enter the post date for this carousel/photo post.");return;}
+        await onUpdateLink(draft.id,{url:tikTokUrl.trim(),status:"live",likes:likesNum,postDate:resolvedDate.toISOString(),manualDateUsed:!postDate&&!!manualDate,promotedFromDraft:true,promotedAt:new Date().toISOString()});
+        setPromotingId(null); setTikTokUrl(""); setManualDate(""); setLikes(""); setPromoteError("");
+      };
+
+      const cancelPromote = () => { setPromotingId(null); setTikTokUrl(""); setManualDate(""); setLikes(""); setPromoteError(""); };
+
+      return (
+        <div className="max-w-2xl mx-auto space-y-6">
+          <div style={{background:"#0d0014",borderColor:"#3b0764"}} className="border rounded-xl p-5 space-y-3">
+            <h2 className="font-semibold text-base text-white">📝 Drafts</h2>
+            <p style={{color:"#7e22ce"}} className="text-xs">Select your name to see your pending drafts. When a video goes live on TikTok, hit "Mark Live" and paste the TikTok URL.</p>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={()=>setSelectedPm("")} style={selectedPm===""?{background:"#7c3aed",color:"white"}:{background:"#1a0030",color:"#c4b5fd",borderColor:"#4c1d95"}} className="px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors">All PMs</button>
+              {pms.map(p=>{
+                const count=links.filter(l=>l.status==="draft"&&l.pmId===p.id).length;
+                return (
+                  <button key={p.id} onClick={()=>setSelectedPm(p.id)} style={selectedPm===p.id?{background:"#7c3aed",color:"white"}:{background:"#1a0030",color:"#c4b5fd",borderColor:"#4c1d95"}} className="px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors flex items-center gap-2">
+                    {p.name}
+                    {count>0&&<span style={{background:selectedPm===p.id?"rgba(255,255,255,0.25)":"#3b0764"}} className="text-xs rounded-full px-1.5 py-0.5">{count}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {myDrafts.length===0
+            ?<div style={{color:"#4c1d95"}} className="text-center py-16 text-sm">{selectedPm?"No pending drafts for this PM.":"No pending drafts."}</div>
+            :(<div className="space-y-3">
+              {myDrafts.map(draft=>(
+                <div key={draft.id} style={{background:"#0d0014",borderColor:"#3b0764"}} className="border rounded-xl p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2 flex-wrap">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-white font-medium text-sm">{draft.pmName}</span>
+                        <span style={{color:"#6b21a8"}}>·</span>
+                        <span className="text-white text-sm">{draft.client}</span>
+                        <span style={{color:"#c4b5fd"}} className="text-sm">@{draft.username}</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{background:"#2d0057",color:"#c4b5fd"}}>⏳ Draft</span>
+                      </div>
+                      <p style={{color:"#6b21a8"}} className="text-xs">Added {new Date(draft.date).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}</p>
+                      {draft.url&&<a href={draft.url} target="_blank" rel="noreferrer" style={{color:"#818cf8"}} className="text-xs hover:underline truncate block max-w-xs">{draft.url}</a>}
+                    </div>
+                    {promotingId!==draft.id&&(
+                      <button onClick={()=>{setPromotingId(draft.id);setTikTokUrl("");setManualDate("");setLikes("");setPromoteError("");}} style={{background:"#166534",color:"#86efac"}} className="text-xs px-3 py-1.5 rounded-lg hover:opacity-80 font-semibold shrink-0">✓ Mark Live</button>
+                    )}
+                  </div>
+                  {promotingId===draft.id&&(
+                    <div style={{background:"#1a0030",borderColor:"#4c1d95"}} className="border rounded-lg p-4 space-y-3">
+                      <p style={{color:"#c4b5fd"}} className="text-xs font-semibold">Paste the live TikTok URL:</p>
+                      <div>
+                        <input value={tikTokUrl} onChange={e=>setTikTokUrl(e.target.value)} placeholder="https://www.tiktok.com/@username/video/..." style={{background:"#0d0014",borderColor:"#4c1d95"}} className="w-full border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none"/>
+                        {tikTokUrl&&(postDate
+                          ?<p className="text-xs mt-1.5" style={{color:"#86efac"}}>✓ Post date: <strong>{postDate.toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}</strong></p>
+                          :(<div className="space-y-2 mt-2">
+                            <p className="text-xs" style={{color:"#fbbf24"}}>⚠ Carousel/photo post — enter date manually:</p>
+                            <input type="date" value={manualDate} onChange={e=>setManualDate(e.target.value)} style={{background:"#0d0014",borderColor:"#4c1d95",colorScheme:"dark"}} className="w-full border rounded-lg px-3 py-2 text-sm text-white focus:outline-none"/>
+                          </div>)
+                        )}
+                      </div>
+                      <div>
+                        <label style={{color:"#c4b5fd"}} className="text-xs mb-1 block">Like Count <span style={{color:"#6b21a8"}}>(optional)</span></label>
+                        <div className="flex gap-2 items-center">
+                          <input value={likes} onChange={e=>setLikes(e.target.value)} placeholder="e.g. 5000" style={{background:"#0d0014",borderColor:"#4c1d95"}} className="flex-1 border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none"/>
+                          {likesNum>0&&bonusLabel(likesNum)&&<span className="text-xs font-bold shrink-0" style={{color:"#86efac"}}>{bonusLabel(likesNum)}</span>}
+                        </div>
+                      </div>
+                      {promoteError&&<p className="text-xs text-red-400">{promoteError}</p>}
+                      <div className="flex gap-2">
+                        <button onClick={cancelPromote} style={{background:"#0d0014",borderColor:"#4c1d95"}} className="flex-1 border rounded-lg py-2 text-sm text-gray-400 hover:text-white transition-colors">Cancel</button>
+                        <button onClick={()=>submitPromote(draft)} style={{background:"#166534"}} className="flex-1 rounded-lg py-2 text-sm font-semibold text-white hover:opacity-90">🚀 Mark as Live</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>)}
+        </div>
+      );
+    }
+
+    function ManageTab({ pms, onAddPm, onRenamePm, onAddAccount, onRemoveAccount }) {
+      const [selPm, setSelPm] = useState(pms[0]?.id??"");
+      const [newClient, setNewClient] = useState("");
+      const [newUser, setNewUser] = useState("");
+      const [newPmName, setNewPmName] = useState("");
+      const [editingName, setEditingName] = useState(null);
+      const [tempName, setTempName] = useState("");
+      const pm = pms.find(p=>p.id===selPm);
+      const iCls = "border rounded-lg px-3 py-2 text-sm focus:outline-none text-white placeholder-gray-500";
+      const iStyle = {background:"#1a0030",borderColor:"#4c1d95"};
+
+      const addAccount = async () => {
+        if(!newClient.trim()||!newUser.trim()) return;
+        await onAddAccount(selPm, newClient.trim(), newUser.trim().replace(/^@/,""));
+        setNewClient(""); setNewUser("");
+      };
+      const addPm = async () => {
+        if(!newPmName.trim()) return;
+        const id = await onAddPm(newPmName.trim());
+        setSelPm(id); setNewPmName("");
+      };
+      const saveName = async (pmId) => { await onRenamePm(pmId, tempName); setEditingName(null); };
+
+      return (
+        <div className="max-w-xl space-y-6">
+          <div style={{background:"#0d0014",borderColor:"#3b0764"}} className="border rounded-xl p-5 space-y-3">
+            <h3 style={{color:"#c4b5fd"}} className="text-sm font-semibold">Project Managers</h3>
+            <div className="flex flex-wrap gap-2">
+              {pms.map(p=>(<button key={p.id} onClick={()=>setSelPm(p.id)} style={selPm===p.id?{background:"#7c3aed",color:"white"}:{background:"#1a0030",color:"#c4b5fd",borderColor:"#4c1d95"}} className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border">{p.name}</button>))}
+            </div>
+            <div className="flex gap-2">
+              <input value={newPmName} onChange={e=>setNewPmName(e.target.value)} placeholder="New PM name…" style={iStyle} className={`flex-1 ${iCls}`}/>
+              <button onClick={addPm} style={{background:"#7c3aed"}} className="hover:opacity-90 px-4 py-2 rounded-lg text-sm font-medium text-white">Add PM</button>
+            </div>
+          </div>
+          {pm&&(
+            <div style={{background:"#0d0014",borderColor:"#3b0764"}} className="border rounded-xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                {editingName===pm.id
+                  ?<div className="flex gap-2"><input value={tempName} onChange={e=>setTempName(e.target.value)} style={iStyle} className={iCls}/><button onClick={()=>saveName(pm.id)} style={{color:"#a78bfa"}} className="text-sm">Save</button></div>
+                  :<div className="flex items-center gap-2"><h3 style={{color:"#c4b5fd"}} className="text-sm font-semibold">{pm.name}'s Accounts ({pm.accounts.length})</h3><button onClick={()=>{setEditingName(pm.id);setTempName(pm.name);}} style={{color:"#6b21a8"}} className="hover:text-purple-300 text-xs">✎</button></div>}
+              </div>
+              <div className="space-y-2">
+                {pm.accounts.map(a=>(<div key={a.id} style={{background:"#1a0030"}} className="flex items-center justify-between rounded-lg px-3 py-2 text-sm"><span><span className="text-white">{a.client}</span> <span style={{color:"#6b21a8"}}>·</span> <span style={{color:"#c4b5fd"}}>@{a.username}</span></span><button onClick={()=>onRemoveAccount(pm.id,a.id)} className="text-gray-600 hover:text-red-400">✕</button></div>))}
+                {pm.accounts.length===0&&<p style={{color:"#6b21a8"}} className="text-sm">No accounts yet.</p>}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <input value={newClient} onChange={e=>setNewClient(e.target.value)} placeholder="Client name" style={iStyle} className={iCls}/>
+                <input value={newUser} onChange={e=>setNewUser(e.target.value)} placeholder="@username" style={iStyle} className={iCls}/>
+              </div>
+              <button onClick={addAccount} style={{background:"#7c3aed"}} className="w-full hover:opacity-90 rounded-lg py-2 text-sm font-semibold text-white">+ Add Account</button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function AdminGate(props) {
+      const [unlocked, setUnlocked] = useState(false);
+      const [input, setInput] = useState("");
+      const [err, setErr] = useState(false);
+      const attempt = () => { if(input==="letsdothis"){setUnlocked(true);setErr(false);}else{setErr(true);setInput("");} };
+      if(unlocked) return <AdminTab {...props} onLock={()=>setUnlocked(false)}/>;
+      return (
+        <div className="max-w-xs mx-auto mt-16">
+          <div style={{background:"#0d0014",borderColor:"#3b0764"}} className="border rounded-xl p-8 space-y-5 text-center">
+            <div style={{background:"#1a0030"}} className="w-14 h-14 rounded-full flex items-center justify-center text-2xl mx-auto">🔒</div>
+            <div><h2 className="font-bold text-white text-lg">Admin Access</h2><p style={{color:"#a78bfa"}} className="text-xs mt-1">Enter the password to continue</p></div>
+            <input type="password" value={input} onChange={e=>{setInput(e.target.value);setErr(false);}} onKeyDown={e=>e.key==="Enter"&&attempt()} placeholder="Password" style={{background:"#1a0030",borderColor:err?"#ef4444":"#4c1d95"}} className="w-full border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none text-center"/>
+            {err&&<p className="text-red-400 text-xs">Incorrect password.</p>}
+            <button onClick={attempt} style={{background:"#7c3aed"}} className="w-full hover:opacity-90 rounded-lg py-2 text-sm font-semibold text-white">Unlock</button>
+          </div>
+        </div>
+      );
+    }
+
+    function ExportModal({ pms, links, onClose }) {
+      const [selPms, setSelPms] = useState(pms.map(p=>p.id));
+      const [selMonths, setSelMonths] = useState([`2026-${new Date().getMonth()}`]);
+      const togglePm = id => setSelPms(s=>s.includes(id)?s.filter(x=>x!==id):[...s,id]);
+      const toggleMonth = v => setSelMonths(s=>s.includes(v)?s.filter(x=>x!==v):[...s,v]);
+      const liveLinks = links.filter(l=>l.status!=="draft");
+      const preview = liveLinks.filter(l=>{
+        const d=new Date(l.postDate||l.date);
+        return selPms.includes(l.pmId)&&selMonths.some(mv=>{const mo=MONTH_OPTS.find(m=>m.value===mv);return mo&&d>=mo.start&&d<=mo.end;});
+      });
+      const clean = preview.filter(l=>!l.duplicate);
+      const bonuses = calcProjectBonuses(clean);
+      const totalBonus = Object.values(bonuses).reduce((s,p)=>s+p.capped,0);
+      const doExport = () => {
+        const pmNames=selPms.map(id=>pms.find(p=>p.id===id)?.name).join("+");
+        const monthLabels=selMonths.map(mv=>MONTH_OPTS.find(m=>m.value===mv)?.short).join("+");
+        const rows=[["Post Date","Logged Date","PM","Client","Username","TikTok URL","Likes","Video Bonus","Status","Source"],
+          ...preview.map(l=>{const vb=l.duplicate?0:calcVideoBonus(l.likes||0);return[new Date(l.postDate||l.date).toLocaleDateString(),new Date(l.date).toLocaleDateString(),l.pmName,l.client,"@"+l.username,l.url,l.likes||0,vb?`$${vb}`:"$0",l.duplicate?"DOUBLE LINK":"OK",l.promotedFromDraft?"Draft→Live":"Direct"];}),
+          [],[" --- Bonus Summary ---"],["PM","Client","Raw Bonus","Capped Bonus"],
+          ...Object.values(bonuses).map(b=>[b.pmName,b.client,`$${b.raw}`,`$${b.capped}`]),
+          [],["TOTAL BONUS PAYOUT","","",`$${totalBonus}`]];
+        const csv=rows.map(r=>r.map(c=>`"${c}"`).join(",")).join("\n");
+        const a=document.createElement("a"); a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv); a.download=`bwclub-${pmNames}-${monthLabels}.csv`; a.click(); onClose();
+      };
+      return (
+        <div className="fixed inset-0 flex items-center justify-center z-50 py-8" style={{background:"rgba(0,0,0,0.75)"}}>
+          <div style={{background:"#0d0014",borderColor:"#3b0764"}} className="border rounded-xl p-6 w-full max-w-lg space-y-5 mx-4 overflow-y-auto max-h-screen">
+            <div className="flex items-center justify-between"><h2 className="font-bold text-white text-base">Export Data</h2><button onClick={onClose} className="text-gray-500 hover:text-white text-lg">✕</button></div>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label style={{color:"#c4b5fd"}} className="text-xs font-semibold uppercase tracking-wide">Project Managers</label>
+                <button onClick={()=>setSelPms(selPms.length===pms.length?[]:pms.map(p=>p.id))} style={{color:"#a78bfa"}} className="text-xs hover:text-white">{selPms.length===pms.length?"Deselect all":"Select all"}</button>
+              </div>
+              <div className="flex flex-wrap gap-2">{pms.map(p=>(<button key={p.id} onClick={()=>togglePm(p.id)} style={selPms.includes(p.id)?{background:"#7c3aed",color:"white",borderColor:"#7c3aed"}:{background:"#1a0030",color:"#c4b5fd",borderColor:"#4c1d95"}} className="px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors">{p.name}</button>))}</div>
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label style={{color:"#c4b5fd"}} className="text-xs font-semibold uppercase tracking-wide">Billing Months</label>
+                <button onClick={()=>setSelMonths(selMonths.length===MONTH_OPTS.length?[]:MONTH_OPTS.map(m=>m.value))} style={{color:"#a78bfa"}} className="text-xs hover:text-white">{selMonths.length===MONTH_OPTS.length?"Deselect all":"Select all"}</button>
+              </div>
+              <div className="grid grid-cols-4 gap-2">{MONTH_OPTS.map(m=>(<button key={m.value} onClick={()=>toggleMonth(m.value)} style={selMonths.includes(m.value)?{background:"#7c3aed",color:"white",borderColor:"#7c3aed"}:{background:"#1a0030",color:"#c4b5fd",borderColor:"#4c1d95"}} className="px-2 py-1.5 rounded-lg text-xs font-medium border transition-colors text-center">{m.short}</button>))}</div>
+            </div>
+            <div style={{background:"#1a0030",borderColor:"#4c1d95"}} className="border rounded-lg px-4 py-3 space-y-2">
+              <div className="flex items-center justify-between"><span style={{color:"#a78bfa"}} className="text-sm">Live entries (excl. duplicates)</span><span className="text-white font-bold">{clean.length}</span></div>
+              <div className="flex items-center justify-between"><span style={{color:"#a78bfa"}} className="text-sm">Est. bonus payout</span><span className="font-bold text-lg" style={{color:"#86efac"}}>${totalBonus}</span></div>
+              {preview.length!==clean.length&&<p className="text-xs" style={{color:"#f87171"}}>{preview.length-clean.length} duplicate(s) excluded</p>}
+            </div>
+            <div className="flex gap-3">
+              <button onClick={onClose} style={{background:"#1a0030",borderColor:"#4c1d95"}} className="flex-1 border rounded-lg py-2 text-sm text-gray-400 hover:text-white">Cancel</button>
+              <button onClick={doExport} disabled={clean.length===0||!selPms.length||!selMonths.length} style={{background:clean.length===0?"#3b0764":"#7c3aed"}} className="flex-1 rounded-lg py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">↓ Export {clean.length} Rows</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function AdminTab({ pms, links, onDeleteLink, onClearAll, onUpdateLink, onLock, onRefresh }) {
+      const [filterPm, setFilterPm] = useState("all");
+      const [filterStatus, setFilterStatus] = useState("live");
+      const [search, setSearch] = useState("");
+      const [confirmClear, setConfirmClear] = useState(false);
+      const [showExport, setShowExport] = useState(false);
+      const [editLikes, setEditLikes] = useState({});
+      const curMonth = `2026-${new Date().getMonth()}`;
+      const defaultPeriod = MONTH_OPTS.find(m=>m.value===curMonth)?.value??"2026-0";
+      const [billingPeriod, setBillingPeriod] = useState(defaultPeriod);
+      const activePeriod = MONTH_OPTS.find(m=>m.value===billingPeriod);
+      const liveLinks = links.filter(l=>l.status!=="draft");
+      const periodFiltered = liveLinks.filter(l=>{const d=new Date(l.postDate||l.date);return activePeriod&&d>=activePeriod.start&&d<=activePeriod.end;});
+      const cleanPeriod = periodFiltered.filter(l=>!l.duplicate);
+      const dupeCount = periodFiltered.filter(l=>l.duplicate).length;
+      const byPm = pms.map(p=>({name:p.name,count:cleanPeriod.filter(l=>l.pmId===p.id).length}));
+      const bonuses = calcProjectBonuses(cleanPeriod);
+      const totalBonus = Object.values(bonuses).reduce((s,p)=>s+p.capped,0);
+      const bonusByPm = pms.map(p=>({name:p.name,bonus:Object.values(bonuses).filter(b=>b.pmId===p.id).reduce((s,b)=>s+b.capped,0)}));
+      const draftCount = links.filter(l=>l.status==="draft").length;
+      const displayLinks = links.filter(l=>filterStatus==="all"||l.status===filterStatus).filter(l=>filterPm==="all"||l.pmId===filterPm).filter(l=>!search||[l.client,l.username,l.url,l.pmName].some(v=>v?.toLowerCase().includes(search.toLowerCase()))).sort((a,b)=>b.date.localeCompare(a.date));
+      const saveLikes = id => { const val=parseInt((editLikes[id]||"").replace(/[^0-9]/g,""))||0; onUpdateLink(id,{likes:val}); setEditLikes(prev=>{const n={...prev};delete n[id];return n;}); };
+
+      return (
+        <div className="space-y-6">
+          {showExport&&<ExportModal pms={pms} links={links} onClose={()=>setShowExport(false)}/>}
+          <div style={{background:"#0d0014",borderColor:"#3b0764"}} className="border rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div><p style={{color:"#c4b5fd"}} className="text-sm font-semibold">Billing Period</p>{activePeriod&&<p style={{color:"#7e22ce"}} className="text-xs mt-0.5">{activePeriod.start.toLocaleDateString()} — {activePeriod.end.toLocaleDateString()}</p>}</div>
+              <select value={billingPeriod} onChange={e=>setBillingPeriod(e.target.value)} style={{background:"#1a0030",borderColor:"#4c1d95",color:"white"}} className="border rounded-lg px-3 py-2 text-sm focus:outline-none">
+                {MONTH_OPTS.map(m=><option key={m.value} value={m.value}>{m.label}</option>)}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+              <div style={{background:"#1a0030",borderColor:"#4c1d95"}} className="border rounded-lg px-3 py-2">
+                <p style={{color:"#a78bfa"}} className="text-xs">Live Total</p>
+                <p className="text-xl font-bold text-white">{cleanPeriod.length}</p>
+                {dupeCount>0&&<p className="text-xs mt-0.5" style={{color:"#f87171"}}>{dupeCount} dupe{dupeCount>1?"s":""} excl.</p>}
+              </div>
+              {byPm.map(p=>(<div key={p.name} style={{background:"#1a0030",borderColor:"#4c1d95"}} className="border rounded-lg px-3 py-2"><p style={{color:"#a78bfa"}} className="text-xs">{p.name}</p><p className="text-xl font-bold text-white">{p.count}</p></div>))}
+            </div>
+            <div style={{borderColor:"#4c1d95"}} className="border-t pt-3">
+              <p style={{color:"#c4b5fd"}} className="text-xs font-semibold uppercase tracking-wide mb-2">Bonus Summary</p>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                <div style={{background:"#1a0030",borderColor:"#4c1d95"}} className="border rounded-lg px-3 py-2"><p style={{color:"#a78bfa"}} className="text-xs">Total Payout</p><p className="text-xl font-bold" style={{color:"#86efac"}}>${totalBonus}</p></div>
+                {bonusByPm.map(p=>(<div key={p.name} style={{background:"#1a0030",borderColor:"#4c1d95"}} className="border rounded-lg px-3 py-2"><p style={{color:"#a78bfa"}} className="text-xs">{p.name}</p><p className="text-xl font-bold" style={{color:p.bonus>0?"#86efac":"white"}}>${p.bonus}</p></div>))}
+              </div>
+            </div>
+            {draftCount>0&&<div style={{background:"#1a0030",borderColor:"#4c1d95"}} className="border rounded-lg px-3 py-2 flex items-center gap-2"><span>📝</span><span style={{color:"#a78bfa"}} className="text-xs"><strong className="text-white">{draftCount}</strong> pending draft{draftCount>1?"s":""} not yet counted toward billing</span></div>}
+          </div>
+
+          <div className="flex flex-wrap gap-3 items-center">
+            <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={{background:"#1a0030",borderColor:"#4c1d95",color:"white"}} className="border rounded-lg px-3 py-2 text-sm focus:outline-none">
+              <option value="live">Live only</option><option value="draft">Drafts only</option><option value="all">All</option>
+            </select>
+            <select value={filterPm} onChange={e=>setFilterPm(e.target.value)} style={{background:"#1a0030",borderColor:"#4c1d95",color:"white"}} className="border rounded-lg px-3 py-2 text-sm focus:outline-none">
+              <option value="all">All PMs</option>{pms.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search…" style={{background:"#1a0030",borderColor:"#4c1d95"}} className="flex-1 min-w-40 border rounded-lg px-3 py-2 text-sm focus:outline-none text-white placeholder-gray-500"/>
+            <span style={{color:"#a78bfa"}} className="text-sm">{displayLinks.length} entries</span>
+            <button onClick={()=>setShowExport(true)} style={{background:"#7c3aed"}} className="rounded-lg px-4 py-2 text-sm text-white font-medium hover:opacity-90">↓ Export</button>
+            <button onClick={onRefresh} style={{background:"#1a0030",borderColor:"#4c1d95"}} className="border rounded-lg px-4 py-2 text-sm text-purple-300 hover:text-white">↺ Refresh</button>
+            <button onClick={onLock} style={{background:"#1a0030",borderColor:"#4c1d95"}} className="border rounded-lg px-4 py-2 text-sm text-gray-400 hover:text-white">🔒 Lock</button>
+            {!confirmClear
+              ?<button onClick={()=>setConfirmClear(true)} style={{background:"#1a0030",borderColor:"#4c1d95"}} className="border rounded-lg px-4 py-2 text-sm text-red-400 hover:border-red-700">🗑 Clear All</button>
+              :<div className="flex items-center gap-2"><span className="text-red-400 text-sm">Sure?</span><button onClick={()=>{onClearAll();setConfirmClear(false);}} className="bg-red-700 rounded-lg px-3 py-2 text-sm text-white">Yes</button><button onClick={()=>setConfirmClear(false)} style={{background:"#1a0030"}} className="rounded-lg px-3 py-2 text-sm text-white">Cancel</button></div>}
+          </div>
+
+          {displayLinks.length===0
+            ?<div style={{color:"#6b21a8"}} className="text-center py-16">No entries found.</div>
+            :(<div style={{background:"#0d0014",borderColor:"#3b0764"}} className="border rounded-xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{background:"#1a0030",borderColor:"#3b0764"}} className="border-b text-xs uppercase tracking-wide">
+                      {["#","Status","Post Date","PM","Client","Username","URL","Likes","Bonus","Source",""].map(h=>(<th key={h} style={{color:"#a78bfa"}} className="text-left px-4 py-3 whitespace-nowrap">{h}</th>))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayLinks.map((l,i)=>{
+                      const isDraft=l.status==="draft";
+                      const vb=isDraft||l.duplicate?0:calcVideoBonus(l.likes||0);
+                      const isEditing=editLikes.hasOwnProperty(l.id);
+                      return (
+                        <tr key={l.id} style={{borderColor:"#2d0057",background:isDraft?"#100020":l.duplicate?"#2d0000":""}} className="border-b hover:bg-purple-950 transition-colors">
+                          <td style={{color:"#6b21a8"}} className="px-4 py-3 text-xs">{i+1}</td>
+                          <td className="px-4 py-3 text-xs whitespace-nowrap">{isDraft?<span className="px-2 py-0.5 rounded-full font-semibold" style={{background:"#2d0057",color:"#c4b5fd"}}>⏳ Draft</span>:<span className="px-2 py-0.5 rounded-full font-semibold" style={{background:"#166534",color:"#86efac"}}>✓ Live</span>}</td>
+                          <td className="px-4 py-3 text-xs whitespace-nowrap">
+                            {isDraft?<span style={{color:"#4c1d95"}}>—</span>:<div className="text-white font-medium">{new Date(l.postDate||l.date).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}</div>}
+                            {l.manualDateUsed&&<span className="text-xs" style={{color:"#fbbf24"}}>✎ manual</span>}
+                          </td>
+                          <td className="px-4 py-3 font-medium text-white">{l.pmName}</td>
+                          <td className="px-4 py-3 text-white">{l.client}</td>
+                          <td style={{color:"#c4b5fd"}} className="px-4 py-3">@{l.username}</td>
+                          <td className="px-4 py-3 max-w-xs">
+                            <a href={l.url} target="_blank" rel="noreferrer" style={{color:isDraft?"#a78bfa":"#818cf8"}} className="hover:underline truncate block text-xs">{l.url||"—"}</a>
+                            {l.duplicate&&<span className="inline-block mt-1 text-xs font-bold px-2 py-0.5 rounded" style={{background:"#450a0a",color:"#f87171"}}>⚠ DOUBLE LINK — delete this one</span>}
+                          </td>
+                          <td className="px-4 py-3 text-xs whitespace-nowrap">
+                            {isDraft?<span style={{color:"#4c1d95"}}>—</span>:isEditing?(
+                              <div className="flex gap-1 items-center">
+                                <input value={editLikes[l.id]} onChange={e=>setEditLikes(p=>({...p,[l.id]:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&saveLikes(l.id)} style={{background:"#1a0030",borderColor:"#4c1d95"}} className="border rounded px-2 py-1 text-xs text-white w-20 focus:outline-none"/>
+                                <button onClick={()=>saveLikes(l.id)} style={{color:"#86efac"}} className="text-xs">✓</button>
+                                <button onClick={()=>setEditLikes(p=>{const n={...p};delete n[l.id];return n;})} className="text-gray-500 text-xs">✕</button>
+                              </div>
+                            ):(
+                              <button onClick={()=>setEditLikes(p=>({...p,[l.id]:String(l.likes||"")}))} className="hover:opacity-80">
+                                {l.likes>0?<span className="text-white">{l.likes.toLocaleString()} <span style={{color:"#6b21a8"}}>✎</span></span>:<span style={{color:"#4c1d95"}}>— add ✎</span>}
+                              </button>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-xs font-bold whitespace-nowrap" style={{color:vb>0?"#86efac":"#4c1d95"}}>{vb>0?`$${vb}`:"—"}</td>
+                          <td className="px-4 py-3 text-xs whitespace-nowrap">{l.promotedFromDraft?<span className="px-2 py-0.5 rounded-full text-xs" style={{background:"#1a2a00",color:"#86efac"}}>Draft→Live</span>:isDraft?<span style={{color:"#4c1d95"}}>Draft</span>:<span style={{color:"#4c1d95"}}>Direct</span>}</td>
+                          <td className="px-4 py-3"><button onClick={()=>onDeleteLink(l.id)} className="text-gray-600 hover:text-red-400 transition-colors">✕</button></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>)}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+  </script>
 </body>
 </html>
-
